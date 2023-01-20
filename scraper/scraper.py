@@ -18,7 +18,7 @@ def get_website_content() -> BeautifulSoup:
 
     assert response.status_code == 200, "Response code is not success full"
 
-    return BeautifulSoup(response.text, features="lxml")
+    return BeautifulSoup(response.text, features="html.parser")
 
 def get_all_events_elements(soup: BeautifulSoup) -> Elements:    
     return soup.find_all('li', {"class": "mc-events"})
