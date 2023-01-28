@@ -23,7 +23,7 @@ MENORA_HASH = 'menora_hash' + DELIMITER
 MENORA_SPOT = "מנורה מבטחים הסיוט הכי גדול"
 
 EVENT_TIME = timedelta(minutes=30)
-SEARCH_TIME = timedelta(days=31)
+SEARCH_TIME = timedelta(days=61)
 TIME_ZONE = 'Israel'
 
 REMINDERS = [{'method': 'popup', 'minutes': 60 * 24},
@@ -81,10 +81,33 @@ class CalanderManager:
         self.service = build('calendar', 'v3', credentials=creds)
 
     def get_all_events(self) -> List[Event]:
-        request_result = self.service.events().list(calendarId='primary', q=MENORA_SPOT).execute()
+        curr_time = datetime.now()
+        curr_time = datetime(year=curr_time.year,
+                             month=curr_time.month,
+                             day=curr_time.day,
+                             hour=curr_time.hour,
+                             second=curr_time.second)
 
-        assert 'items' in request_result, "No items field in request result"
-        return [Event(event) for event in request_result['items']]
+        timeMin = curr_time - SEARCH_TIME
+        timeMax = curr_time + SEARCH_TIME
+
+        events = []
+        page_token = None
+        while True:
+            request_result = self.service.events().list(calendarId='primary',
+                                                        q=MENORA_SPOT,
+                                                        timeZone=TIME_ZONE,
+                                                        timeMin=timeMin.isoformat() + "Z",
+                                                        timeMax=timeMax.isoformat() + "Z",
+                                                        pageToken=page_token).execute()
+
+            assert 'items' in request_result, "No items field in request result"
+            page_token = request_result.get('nextPageToken')
+            events += [Event(event) for event in request_result['items']]
+            if not page_token:
+                break
+
+        return events
 
     def delete_event(self, event: Event):
         self.service.events().delete(calendarId='primary', eventId=event.get_id()).execute()
