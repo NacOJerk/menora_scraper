@@ -13,8 +13,8 @@ DESC_CLASS = 'desc'
 Element = element.Tag
 Elements = List[Element]
 
-def get_website_content() -> BeautifulSoup: 
-    response = requests.get(EVENTS_URL, headers={'user-agent': PHONE_USER_AGENT})
+def get_website_content(url=EVENTS_URL) -> BeautifulSoup: 
+    response = requests.get(url, headers={'user-agent': PHONE_USER_AGENT})
 
     assert response.status_code == 200, "Response code is not success full"
 
@@ -22,6 +22,9 @@ def get_website_content() -> BeautifulSoup:
 
 def get_all_events_elements(soup: BeautifulSoup) -> Elements:    
     return soup.find_all('li', {"class": "mc-events"})
+
+def get_next_month_link(soup: BeautifulSoup) -> Elements:    
+    return soup.find('li', {"class": "my-calendar-next"}).find('a')['href']
 
 def to_int(value: str) -> int:
     try:
@@ -31,17 +34,11 @@ def to_int(value: str) -> int:
 
 def find_exatly_one(element: Element, typ: str, filter: Dict[str, str]) -> Element:
     found = element.find_all(typ, filter)
-    assert len(found) == 1, "There isn't a single element, %s - %s" % (typ, str(filter))
+    assert len(found) == 1, "There isn't a single element, %s - %s - %s" % (typ, str(filter), str(found))
 
     return found[0]
 
-def get_single_event_info(element: Element) -> Tuple[str, datetime]:
-    
-    assert element.has_attr('id'), "Element doesn't have id attribute"
-    id_splitted_vals = element.get('id').split('-')
-
-    assert len(id_splitted_vals) == 4, "Not enough values in id, %s" % str(id_splitted_vals)
-    year, month, day = id_splitted_vals[1:]
+def get_single_event_info(element: Element, year: str, month: str, day: str) -> Tuple[str, datetime]:
 
     hour_minute = find_exatly_one(element, 'span', {'class': TIME_CLASS}).text.split(':')
 
@@ -53,8 +50,29 @@ def get_single_event_info(element: Element) -> Tuple[str, datetime]:
     desc = find_exatly_one(element, 'span', {'class': DESC_CLASS}).text
     return (desc, datetime(year, month, day, hour, minute))
 
+def get_event_info(element: Element) -> List[Tuple[str, datetime]]:
+    
+    assert element.has_attr('id'), "Element doesn't have id attribute"
+    id_splitted_vals = element.get('id').split('-')
+
+    assert len(id_splitted_vals) == 4, "Not enough values in id, %s" % str(id_splitted_vals)
+    year, month, day = id_splitted_vals[1:]
+
+    return [get_single_event_info(elem, year, month, day) for elem in element.find_all("div", {'class': 'game'})]
+
+
 def get_all_events_info() -> List[Tuple[str, datetime]]:
-    return [get_single_event_info(element) for element in get_all_events_elements(get_website_content())]
+    website_content = get_website_content()
+    events = []
+    for event_list in [get_event_info(element) for element in get_all_events_elements(website_content)]:
+        events += event_list
+
+    next_month_link = get_next_month_link(website_content)
+
+    for event_list in [get_event_info(element) for element in get_all_events_elements(get_website_content(next_month_link))]:
+        events += event_list
+
+    return events
 
 if __name__ == "__main__":
     elements_info = get_all_events_info()
