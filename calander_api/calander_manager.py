@@ -23,7 +23,7 @@ MENORA_HASH = 'menora_hash' + DELIMITER
 MENORA_SPOT = "מנורה מבטחים הסיוט הכי גדול"
 
 EVENT_TIME = timedelta(minutes=30)
-SEARCH_TIME = timedelta(days=61)
+SEARCH_TIME = timedelta(days=90)
 TIME_ZONE = 'Israel'
 
 REMINDERS = [{'method': 'popup', 'minutes': 60 * 24},
